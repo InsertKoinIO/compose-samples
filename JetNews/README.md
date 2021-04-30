@@ -20,9 +20,7 @@ From here, we can write briefly our `appModule`  [`AppModule.kt`][2]
 
 The setup for Jetpack Compose consist in a classical Android configuration in the Application class: [`JetnewsApplication.kt`][3].
 
-We can resolve components inside `AppContent` function, as default value with `get()`. This allow to replace with any instance later for test.
-
-[`JetnewsApp.kt`][4]
+We can resolve components inside `AppContent` function, as default value with `get()`. This allow to replace with any instance later for test. Check [`JetnewsApp.kt`][4]
 
 [1]: app/src/main/java/com/example/jetnews/di
 [2]: app/src/main/java/com/example/jetnews/di/AppModule.kt
