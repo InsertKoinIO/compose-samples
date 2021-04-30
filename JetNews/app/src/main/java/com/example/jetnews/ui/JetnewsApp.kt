@@ -20,24 +20,21 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
-import com.example.jetnews.data.AppContainer
 import com.example.jetnews.data.interests.InterestsRepository
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.ui.article.ArticleScreen
 import com.example.jetnews.ui.home.HomeScreen
 import com.example.jetnews.ui.interests.InterestsScreen
 import com.example.jetnews.ui.theme.JetnewsTheme
+import org.koin.androidx.compose.get
 
 @Composable
 fun JetnewsApp(
-    appContainer: AppContainer,
     navigationViewModel: NavigationViewModel
 ) {
     JetnewsTheme {
         AppContent(
-            navigationViewModel = navigationViewModel,
-            interestsRepository = appContainer.interestsRepository,
-            postsRepository = appContainer.postsRepository
+            navigationViewModel = navigationViewModel
         )
     }
 }
@@ -45,8 +42,8 @@ fun JetnewsApp(
 @Composable
 private fun AppContent(
     navigationViewModel: NavigationViewModel,
-    postsRepository: PostsRepository,
-    interestsRepository: InterestsRepository
+    postsRepository: PostsRepository = get(),
+    interestsRepository: InterestsRepository = get()
 ) {
     Crossfade(navigationViewModel.currentScreen) { screen ->
         Surface(color = MaterialTheme.colors.background) {
