@@ -16,8 +16,10 @@
 
 package com.example.jetsnack.ui.snackdetail
 
+import android.content.res.Configuration
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,12 +39,12 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -50,6 +52,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -69,6 +73,7 @@ import com.example.jetsnack.ui.components.SnackImage
 import com.example.jetsnack.ui.theme.JetsnackTheme
 import com.example.jetsnack.ui.theme.Neutral8
 import com.example.jetsnack.ui.utils.formatPrice
+import com.example.jetsnack.ui.utils.mirroringBackIcon
 import com.google.accompanist.insets.navigationBarsPadding
 import com.google.accompanist.insets.statusBarsPadding
 import kotlin.math.max
@@ -110,7 +115,7 @@ private fun Header() {
         modifier = Modifier
             .height(280.dp)
             .fillMaxWidth()
-            .background(Brush.horizontalGradient(JetsnackTheme.colors.interactivePrimary))
+            .background(Brush.horizontalGradient(JetsnackTheme.colors.tornado1))
     )
 }
 
@@ -128,7 +133,7 @@ private fun Up(upPress: () -> Unit) {
             )
     ) {
         Icon(
-            imageVector = Icons.Outlined.ArrowBack,
+            imageVector = mirroringBackIcon(),
             tint = JetsnackTheme.colors.iconInteractive,
             contentDescription = stringResource(R.string.label_back)
         )
@@ -163,14 +168,34 @@ private fun Body(
                         color = JetsnackTheme.colors.textHelp,
                         modifier = HzPadding
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(16.dp))
+                    var seeMore by remember { mutableStateOf(true) }
                     Text(
                         text = stringResource(R.string.detail_placeholder),
                         style = MaterialTheme.typography.body1,
                         color = JetsnackTheme.colors.textHelp,
+                        maxLines = if (seeMore) 5 else Int.MAX_VALUE,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = HzPadding
                     )
-
+                    val textButton = if (seeMore) {
+                        stringResource(id = R.string.see_more)
+                    } else {
+                        stringResource(id = R.string.see_less)
+                    }
+                    Text(
+                        text = textButton,
+                        style = MaterialTheme.typography.button,
+                        textAlign = TextAlign.Center,
+                        color = JetsnackTheme.colors.textLink,
+                        modifier = Modifier
+                            .heightIn(20.dp)
+                            .fillMaxWidth()
+                            .padding(top = 15.dp)
+                            .clickable {
+                                seeMore = !seeMore
+                            }
+                    )
                     Spacer(Modifier.height(40.dp))
                     Text(
                         text = stringResource(R.string.ingredients),
@@ -202,7 +227,7 @@ private fun Body(
                     Spacer(
                         modifier = Modifier
                             .padding(bottom = BottomBarHeight)
-                            .navigationBarsPadding(left = false, right = false)
+                            .navigationBarsPadding(start = false, end = false)
                             .height(8.dp)
                     )
                 }
@@ -298,7 +323,7 @@ private fun CollapsingImageLayout(
             width = constraints.maxWidth,
             height = imageY + imageWidth
         ) {
-            imagePlaceable.place(imageX, imageY)
+            imagePlaceable.placeRelative(imageX, imageY)
         }
     }
 }
@@ -312,7 +337,7 @@ private fun CartBottomBar(modifier: Modifier = Modifier) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .navigationBarsPadding(left = false, right = false)
+                    .navigationBarsPadding(start = false, end = false)
                     .then(HzPadding)
                     .heightIn(min = BottomBarHeight)
             ) {
@@ -328,6 +353,8 @@ private fun CartBottomBar(modifier: Modifier = Modifier) {
                 ) {
                     Text(
                         text = stringResource(R.string.add_to_cart),
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
                         maxLines = 1
                     )
                 }
@@ -336,21 +363,12 @@ private fun CartBottomBar(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview("Snack Detail")
+@Preview("default")
+@Preview("dark theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview("large font", fontScale = 2f)
 @Composable
 private fun SnackDetailPreview() {
     JetsnackTheme {
-        SnackDetail(
-            snackId = 1L,
-            upPress = { }
-        )
-    }
-}
-
-@Preview("Snack Detail • Dark")
-@Composable
-private fun SnackDetailDarkPreview() {
-    JetsnackTheme(darkTheme = true) {
         SnackDetail(
             snackId = 1L,
             upPress = { }

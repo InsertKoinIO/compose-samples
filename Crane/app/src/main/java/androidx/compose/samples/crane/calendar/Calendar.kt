@@ -16,7 +16,6 @@
 
 package androidx.compose.samples.crane.calendar
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +31,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.Colors
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -141,9 +141,9 @@ private fun Day(
 ) {
     val enabled = day.status != DaySelectedStatus.NonClickable
     DayContainer(
-        modifier = modifier.clickable(enabled) {
-            if (day.status != DaySelectedStatus.NonClickable) onDayClicked(day)
-        },
+        modifier = modifier,
+        onClick = { if (day.status != DaySelectedStatus.NonClickable) onDayClicked(day) },
+        onClickEnabled = enabled,
         backgroundColor = day.status.color(MaterialTheme.colors)
     ) {
         DayStatusContainer(status = day.status) {
@@ -169,15 +169,20 @@ private fun Day(name: String) {
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 private fun DayContainer(
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = { },
+    onClickEnabled: Boolean = true,
     backgroundColor: Color = Color.Transparent,
     content: @Composable () -> Unit
 ) {
     // What if this doesn't fit the screen? - LayoutFlexible(1f) + LayoutAspectRatio(1f)
     Surface(
         modifier = modifier.size(width = CELL_SIZE, height = CELL_SIZE),
+        onClick = onClick,
+        enabled = onClickEnabled,
         color = backgroundColor
     ) {
         content()
@@ -224,8 +229,12 @@ private fun LazyListScope.itemsCalendarMonth(
     item {
         DaysOfWeek(modifier = contentModifier)
     }
-    for (week in month.weeks.value) {
-        item {
+
+    month.weeks.value.forEachIndexed { index, week ->
+        // A custom key needs to be given to these items so that they can be found in tests that
+        // need scrolling. The format of the key is ${year/month/weekNumber}. Thus,
+        // the key for the fourth week of December 2020 is "2020/12/4"
+        item(key = "${month.year}/${month.monthNumber}/${index + 1}") {
             Week(
                 modifier = contentModifier,
                 week = week,

@@ -16,6 +16,7 @@
 
 package com.example.jetnews.ui.home
 
+import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -35,10 +37,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.jetnews.data.posts.impl.post2
 import com.example.jetnews.data.posts.impl.posts
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.ThemedPreview
+import com.example.jetnews.ui.theme.JetnewsTheme
 
 @Composable
 fun PostCardTop(post: Post, modifier: Modifier = Modifier) {
@@ -86,10 +87,10 @@ fun TutorialPreview() {
     TutorialPreviewTemplate()
 }
 
-@Preview("Dark theme")
+@Preview("Dark theme", uiMode = UI_MODE_NIGHT_YES)
 @Composable
 fun TutorialPreviewDark() {
-    TutorialPreviewTemplate(darkTheme = true)
+    TutorialPreviewTemplate()
 }
 
 @Preview("Font scaling 1.5", fontScale = 1.5f)
@@ -99,29 +100,13 @@ fun TutorialPreviewFontscale() {
 }
 
 @Composable
-fun TutorialPreviewTemplate(
-    darkTheme: Boolean = false
-) {
+fun TutorialPreviewTemplate() {
     val previewPosts = posts.subList(1, 2)
     val post = previewPosts[0]
 
-    ThemedPreview(darkTheme) {
-        PostCardTop(post)
-    }
-}
-
-@Preview("Post card top")
-@Composable
-fun PreviewPostCardTop() {
-    ThemedPreview {
-        PostCardTop(post = post2)
-    }
-}
-
-@Preview("Post card top dark theme")
-@Composable
-fun PreviewPostCardTopDark() {
-    ThemedPreview(darkTheme = true) {
-        PostCardTop(post = post2)
+    JetnewsTheme {
+        Surface {
+            PostCardTop(post)
+        }
     }
 }

@@ -16,6 +16,7 @@
 
 package com.example.jetnews.ui
 
+import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,13 +46,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
+import com.example.jetnews.ui.theme.JetnewsTheme
 
 @Composable
 fun AppDrawer(
-    navigateTo: (Screen) -> Unit,
-    currentScreen: Screen,
+    currentRoute: String,
+    navigateToHome: () -> Unit,
+    navigateToInterests: () -> Unit,
     closeDrawer: () -> Unit
 ) {
+
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(Modifier.height(24.dp))
         JetNewsLogo(Modifier.padding(16.dp))
@@ -59,9 +63,9 @@ fun AppDrawer(
         DrawerButton(
             icon = Icons.Filled.Home,
             label = "Home",
-            isSelected = currentScreen == Screen.Home,
+            isSelected = currentRoute == MainDestinations.HOME_ROUTE,
             action = {
-                navigateTo(Screen.Home)
+                navigateToHome()
                 closeDrawer()
             }
         )
@@ -69,9 +73,9 @@ fun AppDrawer(
         DrawerButton(
             icon = Icons.Filled.ListAlt,
             label = "Interests",
-            isSelected = currentScreen == Screen.Interests,
+            isSelected = currentRoute == MainDestinations.INTERESTS_ROUTE,
             action = {
-                navigateTo(Screen.Interests)
+                navigateToInterests()
                 closeDrawer()
             }
         )
@@ -155,25 +159,17 @@ private fun DrawerButton(
 }
 
 @Preview("Drawer contents")
+@Preview("Drawer contents (dark)", uiMode = UI_MODE_NIGHT_YES)
 @Composable
 fun PreviewAppDrawer() {
-    ThemedPreview {
-        AppDrawer(
-            navigateTo = { },
-            currentScreen = Screen.Home,
-            closeDrawer = { }
-        )
-    }
-}
-
-@Preview("Drawer contents dark theme")
-@Composable
-fun PreviewAppDrawerDark() {
-    ThemedPreview(darkTheme = true) {
-        AppDrawer(
-            navigateTo = { },
-            currentScreen = Screen.Home,
-            closeDrawer = { }
-        )
+    JetnewsTheme {
+        Surface {
+            AppDrawer(
+                currentRoute = MainDestinations.HOME_ROUTE,
+                navigateToHome = {},
+                navigateToInterests = {},
+                closeDrawer = { }
+            )
+        }
     }
 }

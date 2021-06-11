@@ -16,6 +16,7 @@
 
 package com.example.jetnews.ui.home
 
+import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +28,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
-import androidx.compose.material.DrawerValue
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -37,8 +37,6 @@ import androidx.compose.material.ScaffoldState
 import androidx.compose.material.SnackbarResult
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
-import androidx.compose.material.TopAppBar
-import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
@@ -58,11 +57,13 @@ import com.example.jetnews.data.Result
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.data.posts.impl.BlockingFakePostsRepository
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.AppDrawer
-import com.example.jetnews.ui.Screen
-import com.example.jetnews.ui.ThemedPreview
+import com.example.jetnews.ui.components.InsetAwareTopAppBar
 import com.example.jetnews.ui.state.UiState
+import com.example.jetnews.ui.theme.JetnewsTheme
 import com.example.jetnews.utils.produceUiState
+import com.example.jetnews.utils.supportWideScreen
+import com.google.accompanist.insets.LocalWindowInsets
+import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import kotlinx.coroutines.launch
@@ -71,14 +72,16 @@ import kotlinx.coroutines.runBlocking
 /**
  * Stateful HomeScreen which manages state using [produceUiState]
  *
- * @param navigateTo (event) request navigation to [Screen]
  * @param postsRepository data source for this screen
+ * @param navigateToArticle (event) request navigation to Article screen
+ * @param openDrawer (event) request opening the app drawer
  * @param scaffoldState (state) state for the [Scaffold] component on this screen
  */
 @Composable
 fun HomeScreen(
-    navigateTo: (Screen) -> Unit,
     postsRepository: PostsRepository,
+    navigateToArticle: (String) -> Unit,
+    openDrawer: () -> Unit,
     scaffoldState: ScaffoldState = rememberScaffoldState()
 ) {
     val (postUiState, refreshPost, clearError) = produceUiState(postsRepository) {
@@ -102,7 +105,8 @@ fun HomeScreen(
         },
         onRefreshPosts = refreshPost,
         onErrorDismiss = clearError,
-        navigateTo = navigateTo,
+        navigateToArticle = navigateToArticle,
+        openDrawer = openDrawer,
         scaffoldState = scaffoldState
     )
 }
@@ -117,7 +121,9 @@ fun HomeScreen(
  * @param onToggleFavorite (event) toggles favorite for a post
  * @param onRefreshPosts (event) request a refresh of posts
  * @param onErrorDismiss (event) request the current error be dismissed
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
+ * @param openDrawer (event) request opening the app drawer
+ * @param scaffoldState (state) state for the [Scaffold] component on this screen
  */
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -127,9 +133,12 @@ fun HomeScreen(
     onToggleFavorite: (String) -> Unit,
     onRefreshPosts: () -> Unit,
     onErrorDismiss: () -> Unit,
-    navigateTo: (Screen) -> Unit,
+    navigateToArticle: (String) -> Unit,
+    openDrawer: () -> Unit,
     scaffoldState: ScaffoldState
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     if (posts.hasError) {
         val errorMessage = stringResource(id = R.string.load_error)
         val retryMessage = stringResource(id = R.string.retry)
@@ -141,8 +150,8 @@ fun HomeScreen(
 
         // Show snackbar using a coroutine, when the coroutine is cancelled the snackbar will
         // automatically dismiss. This coroutine will cancel whenever posts.hasError is false
-        // (thanks to the surrounding if statement) or if scaffoldState changes.
-        LaunchedEffect(scaffoldState) {
+        // (thanks to the surrounding if statement) or if scaffoldState.snackbarHostState changes.
+        LaunchedEffect(scaffoldState.snackbarHostState) {
             val snackbarResult = scaffoldState.snackbarHostState.showSnackbar(
                 message = errorMessage,
                 actionLabel = retryMessage
@@ -154,22 +163,14 @@ fun HomeScreen(
         }
     }
 
-    val coroutineScope = rememberCoroutineScope()
     Scaffold(
         scaffoldState = scaffoldState,
-        drawerContent = {
-            AppDrawer(
-                currentScreen = Screen.Home,
-                closeDrawer = { coroutineScope.launch { scaffoldState.drawerState.close() } },
-                navigateTo = navigateTo
-            )
-        },
         topBar = {
             val title = stringResource(id = R.string.app_name)
-            TopAppBar(
+            InsetAwareTopAppBar(
                 title = { Text(text = title) },
                 navigationIcon = {
-                    IconButton(onClick = { coroutineScope.launch { scaffoldState.drawerState.open() } }) {
+                    IconButton(onClick = { coroutineScope.launch { openDrawer() } }) {
                         Icon(
                             painter = painterResource(R.drawable.ic_jetnews_logo),
                             contentDescription = stringResource(R.string.cd_open_navigation_drawer)
@@ -177,29 +178,28 @@ fun HomeScreen(
                     }
                 }
             )
-        },
-        content = { innerPadding ->
-            val modifier = Modifier.padding(innerPadding)
-            LoadingContent(
-                empty = posts.initialLoad,
-                emptyContent = { FullScreenLoading() },
-                loading = posts.loading,
-                onRefresh = onRefreshPosts,
-                content = {
-                    HomeScreenErrorAndContent(
-                        posts = posts,
-                        onRefresh = {
-                            onRefreshPosts()
-                        },
-                        navigateTo = navigateTo,
-                        favorites = favorites,
-                        onToggleFavorite = onToggleFavorite,
-                        modifier = modifier
-                    )
-                }
-            )
         }
-    )
+    ) { innerPadding ->
+        val modifier = Modifier.padding(innerPadding)
+        LoadingContent(
+            empty = posts.initialLoad,
+            emptyContent = { FullScreenLoading() },
+            loading = posts.loading,
+            onRefresh = onRefreshPosts,
+            content = {
+                HomeScreenErrorAndContent(
+                    posts = posts,
+                    onRefresh = {
+                        onRefreshPosts()
+                    },
+                    navigateToArticle = navigateToArticle,
+                    favorites = favorites,
+                    onToggleFavorite = onToggleFavorite,
+                    modifier = modifier.supportWideScreen()
+                )
+            }
+        )
+    }
 }
 
 /**
@@ -235,7 +235,7 @@ private fun LoadingContent(
  *
  * @param posts (state) list of posts and error state to display
  * @param onRefresh (event) request to refresh data
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
  * @param favorites (state) all favorites
  * @param onToggleFavorite (event) request a single favorite be toggled
  * @param modifier modifier for root element
@@ -244,13 +244,13 @@ private fun LoadingContent(
 private fun HomeScreenErrorAndContent(
     posts: UiState<List<Post>>,
     onRefresh: () -> Unit,
-    navigateTo: (Screen) -> Unit,
+    navigateToArticle: (String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (posts.data != null) {
-        PostList(posts.data, navigateTo, favorites, onToggleFavorite, modifier)
+        PostList(posts.data, navigateToArticle, favorites, onToggleFavorite, modifier)
     } else if (!posts.hasError) {
         // if there are no posts, and no error, let the user refresh manually
         TextButton(onClick = onRefresh, modifier.fillMaxSize()) {
@@ -265,17 +265,17 @@ private fun HomeScreenErrorAndContent(
 /**
  * Display a list of posts.
  *
- * When a post is clicked on, [navigateTo] will be called to navigate to the detail screen for that
- * post.
+ * When a post is clicked on, [navigateToArticle] will be called to navigate to the detail screen
+ * for that post.
  *
  * @param posts (state) the list to display
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
  * @param modifier modifier for the root element
  */
 @Composable
 private fun PostList(
     posts: List<Post>,
-    navigateTo: (Screen) -> Unit,
+    navigateToArticle: (postId: String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -285,11 +285,17 @@ private fun PostList(
     val postsPopular = posts.subList(2, 7)
     val postsHistory = posts.subList(7, 10)
 
-    LazyColumn(modifier = modifier) {
-        item { PostListTopSection(postTop, navigateTo) }
-        item { PostListSimpleSection(postsSimple, navigateTo, favorites, onToggleFavorite) }
-        item { PostListPopularSection(postsPopular, navigateTo) }
-        item { PostListHistorySection(postsHistory, navigateTo) }
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = rememberInsetsPaddingValues(
+            insets = LocalWindowInsets.current.systemBars,
+            applyTop = false
+        )
+    ) {
+        item { PostListTopSection(postTop, navigateToArticle) }
+        item { PostListSimpleSection(postsSimple, navigateToArticle, favorites, onToggleFavorite) }
+        item { PostListPopularSection(postsPopular, navigateToArticle) }
+        item { PostListHistorySection(postsHistory, navigateToArticle) }
     }
 }
 
@@ -311,10 +317,10 @@ private fun FullScreenLoading() {
  * Top section of [PostList]
  *
  * @param post (state) highlighted post to display
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
  */
 @Composable
-private fun PostListTopSection(post: Post, navigateTo: (Screen) -> Unit) {
+private fun PostListTopSection(post: Post, navigateToArticle: (String) -> Unit) {
     Text(
         modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
         text = "Top stories for you",
@@ -322,7 +328,7 @@ private fun PostListTopSection(post: Post, navigateTo: (Screen) -> Unit) {
     )
     PostCardTop(
         post = post,
-        modifier = Modifier.clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+        modifier = Modifier.clickable(onClick = { navigateToArticle(post.id) })
     )
     PostListDivider()
 }
@@ -331,12 +337,12 @@ private fun PostListTopSection(post: Post, navigateTo: (Screen) -> Unit) {
  * Full-width list items for [PostList]
  *
  * @param posts (state) to display
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
  */
 @Composable
 private fun PostListSimpleSection(
     posts: List<Post>,
-    navigateTo: (Screen) -> Unit,
+    navigateToArticle: (String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit
 ) {
@@ -344,7 +350,7 @@ private fun PostListSimpleSection(
         posts.forEach { post ->
             PostCardSimple(
                 post = post,
-                navigateTo = navigateTo,
+                navigateToArticle = navigateToArticle,
                 isFavorite = favorites.contains(post.id),
                 onToggleFavorite = { onToggleFavorite(post.id) }
             )
@@ -357,12 +363,12 @@ private fun PostListSimpleSection(
  * Horizontal scrolling cards for [PostList]
  *
  * @param posts (state) to display
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
  */
 @Composable
 private fun PostListPopularSection(
     posts: List<Post>,
-    navigateTo: (Screen) -> Unit
+    navigateToArticle: (String) -> Unit
 ) {
     Column {
         Text(
@@ -373,7 +379,11 @@ private fun PostListPopularSection(
 
         LazyRow(modifier = Modifier.padding(end = 16.dp)) {
             items(posts) { post ->
-                PostCardPopular(post, navigateTo, Modifier.padding(start = 16.dp, bottom = 16.dp))
+                PostCardPopular(
+                    post,
+                    navigateToArticle,
+                    Modifier.padding(start = 16.dp, bottom = 16.dp)
+                )
             }
         }
         PostListDivider()
@@ -384,16 +394,16 @@ private fun PostListPopularSection(
  * Full-width list items that display "based on your history" for [PostList]
  *
  * @param posts (state) to display
- * @param navigateTo (event) request navigation to [Screen]
+ * @param navigateToArticle (event) request navigation to Article screen
  */
 @Composable
 private fun PostListHistorySection(
     posts: List<Post>,
-    navigateTo: (Screen) -> Unit
+    navigateToArticle: (String) -> Unit
 ) {
     Column {
         posts.forEach { post ->
-            PostCardHistory(post, navigateTo)
+            PostCardHistory(post, navigateToArticle)
             PostListDivider()
         }
     }
@@ -410,58 +420,25 @@ private fun PostListDivider() {
     )
 }
 
-@Preview("Home screen body")
+@Preview("Home screen")
+@Preview("Home screen (dark)", uiMode = UI_MODE_NIGHT_YES)
+@Preview("Home screen (big font)", fontScale = 1.5f)
+@Preview("Home screen (large screen)", device = Devices.PIXEL_C)
 @Composable
-fun PreviewHomeScreenBody() {
-    ThemedPreview {
-        val posts = loadFakePosts()
-        PostList(posts, { }, setOf(), {})
-    }
-}
-
-@Preview("Home screen, open drawer")
-@Composable
-private fun PreviewDrawerOpen() {
-    ThemedPreview {
-        val scaffoldState = rememberScaffoldState(
-            drawerState = rememberDrawerState(DrawerValue.Open)
-        )
-        HomeScreen(
-            postsRepository = BlockingFakePostsRepository(),
-            scaffoldState = scaffoldState,
-            navigateTo = { }
-        )
-    }
-}
-
-@Preview("Home screen dark theme")
-@Composable
-fun PreviewHomeScreenBodyDark() {
-    ThemedPreview(darkTheme = true) {
-        val posts = loadFakePosts()
-        PostList(posts, {}, setOf(), {})
-    }
-}
-
-@Composable
-private fun loadFakePosts(): List<Post> {
+fun PreviewHomeScreen() {
     val posts = runBlocking {
-        BlockingFakePostsRepository().getPosts()
+        (BlockingFakePostsRepository().getPosts() as Result.Success).data
     }
-    return (posts as Result.Success).data
-}
-
-@Preview("Home screen, open drawer dark theme")
-@Composable
-private fun PreviewDrawerOpenDark() {
-    ThemedPreview(darkTheme = true) {
-        val scaffoldState = rememberScaffoldState(
-            drawerState = rememberDrawerState(DrawerValue.Open)
-        )
+    JetnewsTheme {
         HomeScreen(
-            postsRepository = BlockingFakePostsRepository(),
-            scaffoldState = scaffoldState,
-            navigateTo = { }
+            posts = UiState(data = posts),
+            favorites = setOf(),
+            onToggleFavorite = { /*TODO*/ },
+            onRefreshPosts = { /*TODO*/ },
+            onErrorDismiss = { /*TODO*/ },
+            navigateToArticle = { /*TODO*/ },
+            openDrawer = { /*TODO*/ },
+            scaffoldState = rememberScaffoldState()
         )
     }
 }

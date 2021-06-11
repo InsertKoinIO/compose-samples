@@ -18,6 +18,7 @@ package com.example.jetnews.ui.article
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +33,6 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
-import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
@@ -57,9 +58,12 @@ import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.data.posts.impl.BlockingFakePostsRepository
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.ThemedPreview
+import com.example.jetnews.ui.components.InsetAwareTopAppBar
 import com.example.jetnews.ui.home.BookmarkButton
+import com.example.jetnews.ui.theme.JetnewsTheme
 import com.example.jetnews.utils.produceUiState
+import com.example.jetnews.utils.supportWideScreen
+import com.google.accompanist.insets.navigationBarsPadding
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -73,7 +77,7 @@ import kotlinx.coroutines.runBlocking
 @Suppress("DEPRECATION") // allow ViewModelLifecycleScope call
 @Composable
 fun ArticleScreen(
-    postId: String,
+    postId: String?,
     postsRepository: PostsRepository,
     onBack: () -> Unit
 ) {
@@ -98,7 +102,7 @@ fun ArticleScreen(
         onBack = onBack,
         isFavorite = isFavorite,
         onToggleFavorite = {
-            coroutineScope.launch { postsRepository.toggleFavorite(postId) }
+            coroutineScope.launch { postId?.let { postsRepository.toggleFavorite(postId) } }
         }
     )
 }
@@ -126,7 +130,7 @@ fun ArticleScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            InsetAwareTopAppBar(
                 title = {
                     Text(
                         text = "Published in: ${post.publication?.name}",
@@ -144,10 +148,6 @@ fun ArticleScreen(
                 }
             )
         },
-        content = { innerPadding ->
-            val modifier = Modifier.padding(innerPadding)
-            PostContent(post, modifier)
-        },
         bottomBar = {
             BottomBar(
                 post = post,
@@ -156,7 +156,18 @@ fun ArticleScreen(
                 onToggleFavorite = onToggleFavorite
             )
         }
-    )
+    ) { innerPadding ->
+        PostContent(
+            post = post,
+            modifier = Modifier
+                // innerPadding takes into account the top and bottom bar
+                .padding(innerPadding)
+                // offset content in landscape mode to account for the navigation bar
+                .navigationBarsPadding(bottom = false)
+                // center content in landscape mode
+                .supportWideScreen()
+        )
+    }
 }
 
 /**
@@ -174,10 +185,11 @@ private fun BottomBar(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit
 ) {
-    Surface(elevation = 2.dp) {
+    Surface(elevation = 8.dp) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
+                .navigationBarsPadding()
                 .height(56.dp)
                 .fillMaxWidth()
         ) {
@@ -248,26 +260,15 @@ private fun sharePost(post: Post, context: Context) {
 }
 
 @Preview("Article screen")
+@Preview("Article screen (dark)", uiMode = UI_MODE_NIGHT_YES)
+@Preview("Article screen (big font)", fontScale = 1.5f)
+@Preview("Article screen (large screen)", device = Devices.PIXEL_C)
 @Composable
 fun PreviewArticle() {
-    ThemedPreview {
-        val post = loadFakePost(post3.id)
+    JetnewsTheme {
+        val post = runBlocking {
+            (BlockingFakePostsRepository().getPost(post3.id) as Result.Success).data
+        }
         ArticleScreen(post, {}, false, {})
-    }
-}
-
-@Preview("Article screen dark theme")
-@Composable
-fun PreviewArticleDark() {
-    ThemedPreview(darkTheme = true) {
-        val post = loadFakePost(post3.id)
-        ArticleScreen(post, {}, false, {})
-    }
-}
-
-@Composable
-private fun loadFakePost(postId: String): Post {
-    return runBlocking {
-        (BlockingFakePostsRepository().getPost(postId) as Result.Success).data
     }
 }

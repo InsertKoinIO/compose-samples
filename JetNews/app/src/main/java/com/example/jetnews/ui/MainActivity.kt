@@ -18,27 +18,18 @@ package com.example.jetnews.ui
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.example.jetnews.JetnewsApplication
-import org.koin.androidx.viewmodel.ext.android.stateViewModel
-import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : AppCompatActivity() {
 
-    private val navigationViewModel by stateViewModel<NavigationViewModel>()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            JetnewsApp(navigationViewModel)
-        }
-    }
-
-    override fun onBackPressed() {
-        if (!navigationViewModel.onBack()) {
-            super.onBackPressed()
+            JetnewsApp()
         }
     }
 }
