@@ -80,6 +80,11 @@ The data in the sample is static, held in the `com.example.jetnews.data` package
 
 Run UI tests from Android Studio or with the `./gradlew connectedCheck` command.
 
+### Koin
+
+File `di/AppModule.kt` contains container definition to be injected.
+In `JetnewsNavGraph` class, we inject with `get()` Koin function.
+
 ## License
 
 ```
